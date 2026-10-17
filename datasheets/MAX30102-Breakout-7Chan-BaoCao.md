@@ -7,7 +7,7 @@
 **MCU đích của đồ án:** ESP32 DevKit (`esp32doit-devkit-v1`, logic **3.3 V**)
 
 > **Quy ước độ tin cậy (đã rà soát 17/10/2026):** các mục gắn **[DS]** = trích từ datasheet chip; **[ĐÃ KIỂM CHỨNG]** = có nguồn công khai (Arduino forum, Elektroda, tài liệu ESP-IDF/esptool, SparkFun); **[SUY LUẬN]** / **[KHÔNG CHẮC]** = suy ra từ kiến thức chung hoặc cộng đồng, **phải đo trên board thật**. Breakout là hàng clone, mỗi lô PCB khác nhau — datasheet **không** nói gì về layout board.
-
+>
 > Tài liệu này mô tả **board carrier / breakout**, không thay thế datasheet chip. Thanh ghi, FIFO, MODE, ADC vẫn theo `MAX30102-BaoCao.md`. Phần dưới tập trung: pinout 7 chân, nguồn, I2C, linh kiện sẵn có, đấu dây ESP32, lỗi clone, và những gì **cần / không cần** thêm.
 
 ---
