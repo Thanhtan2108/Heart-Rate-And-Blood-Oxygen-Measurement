@@ -6,6 +6,8 @@
 **Tài liệu đi kèm:** `datasheets/MAX30102-BaoCao.md` (datasheet **chip**) và `datasheets/MAX30102.PDF`  
 **MCU đích của đồ án:** ESP32 DevKit (`esp32doit-devkit-v1`, logic **3.3 V**)
 
+> **Quy ước độ tin cậy (đã rà soát 17/10/2026):** các mục gắn **[DS]** = trích từ datasheet chip; **[ĐÃ KIỂM CHỨNG]** = có nguồn công khai (Arduino forum, Elektroda, tài liệu ESP-IDF/esptool, SparkFun); **[SUY LUẬN]** / **[KHÔNG CHẮC]** = suy ra từ kiến thức chung hoặc cộng đồng, **phải đo trên board thật**. Breakout là hàng clone, mỗi lô PCB khác nhau — datasheet **không** nói gì về layout board.
+
 > Tài liệu này mô tả **board carrier / breakout**, không thay thế datasheet chip. Thanh ghi, FIFO, MODE, ADC vẫn theo `MAX30102-BaoCao.md`. Phần dưới tập trung: pinout 7 chân, nguồn, I2C, linh kiện sẵn có, đấu dây ESP32, lỗi clone, và những gì **cần / không cần** thêm.
 
 ---
@@ -53,19 +55,19 @@ Kết luận: PDF phục vụ **silicon**. Board shop phục vụ **cắm dây n
 
 ![breakout-module-MAX30102-7-pinout](../images/breakout-module-MAX30102-7-pinout.png)
 
-Ảnh `breakout-module-MAX30102-7-pinout.png` khớp **đúng** loại bán lẻ phổ biến:
+Ảnh `breakout-module-MAX30102-7-pinout.png` có dạng **giống** loại breakout bán lẻ phổ biến (nhận định bằng mắt, **[KHÔNG CHẮC]** về nhãn thương mại):
 
 - PCB **xanh lá**, chữ **MAX30102**
 - Ở giữa: **cửa sổ quang đen** = package MAX30102 (LED đỏ + IR + photodiode + kính phủ **nằm trong chip**, không phải LED rời)
-- Hai tụ tantalum **vàng** hai bên chip (lọc nguồn)
-- IC SOT-23 nhỏ = **LDO 1.8 V** (và đôi khi thêm LDO 3.3 V trên biến thể khác)
+- Hai tụ tantalum **vàng** nằm cùng một phía (bên phải chip trong ảnh) — lọc nguồn
+- Có vẻ có **hai IC nhỏ dạng SOT-23** trên board (khó chắc từ ảnh). Nếu đúng, có thể là hai LDO (3.3 V → 1.8 V) và **sơ đồ một-LDO ở mục 5 không khớp board này**. **Đừng giả định — hãy đo** (mục 7.3, 17).
 - Hàng 7 pad/header cạnh board, silkscreen trái → phải:
 
 ```text
 VIN   SCL   SDA   INT   IRD   RD   GND
 ```
 
-Đây **không** phải SparkFun Qwiic / Analog Devices EV-kit. Đây là clone kiểu **GY-MAX30102 / CJMCU / RCWL-0531** (layout 7 chân thừa hưởng MAX30100).
+Đây **không** phải SparkFun Qwiic / Analog Devices EV-kit. Nhiều khả năng là clone kiểu **GY-MAX30102 / CJMCU / MH-ET LIVE** dùng hàng chân kiểu MAX30100 (**[SUY LUẬN]**, không xác định được hãng/lô chính xác từ ảnh).
 
 ---
 
@@ -77,7 +79,8 @@ Cùng chip, shop có thể dán nhãn:
 | --- | --- |
 | GY-MAX30102 | Tên phổ biến nhất, PCB ~14 × 14 mm |
 | CJMCU-30102 | Cùng form 7 chân |
-| RCWL-0531 | Đời sau RCWL-0530 (MAX30100); thường có **pad chọn 1.8/3.3 V** cho pull-up |
+| RCWL-0531 | **[KHÔNG CHẮC]** thường được nhắc là đời sau RCWL-0530 (MAX30100); chưa xác minh được chi tiết pad |
+| MH-ET LIVE MAX30102 | **[ĐÃ KIỂM CHỨNG]** (Arduino forum/Elektroda): có **pad 3 điểm chọn pull-up 1.8 V / 3.3 V**, pull-up **4.7 kΩ**, SDA/SCL có dịch mức, **INT không dịch mức**; chạy 3.3 V trên NodeMCU |
 | Board đen “level shifter” | Thêm MOSFET dịch mức I2C; đắt hơn, dễ dùng với Arduino 5 V |
 | Board MAX30100 7 chân | **Cùng thứ tự chân** — dễ mua nhầm |
 
@@ -92,10 +95,10 @@ Trên một breakout 7 chân “đủ dùng”, ngoài chip còn:
 | Linh kiện | Vai trò |
 | --- | --- |
 | **MAX30102** | Cảm biến quang + ADC + FIFO + I2C |
-| **LDO 1.8 V** (thường XC6206P182 / ME6211-1.8 / tương đương) | Hạ VIN → **VDD chip 1.8 V** (chip **cấm** 3.3 V thẳng vào VDD) |
-| Tụ tantalum / MLCC (vài µF đến 10 µF) | Bypass **VDD** và **VLED+/VIN** — datasheet yêu cầu ≥ 1 µF sát chân LED |
+| **LDO 1.8 V** (mã cụ thể **[KHÔNG CHẮC]**, mỗi lô một khác) | Hạ VIN → **VDD chip 1.8 V** (chip **cấm** 3.3 V thẳng vào VDD, abs max 2.2 V **[DS]**) |
+| Tụ tantalum / MLCC (vài µF đến 10 µF) | Bypass **VDD** và **VLED+/VIN** — mạch mẫu datasheet dùng tụ ≥ 1 µF (VLED+ thường 10 µF) **[DS]** |
 | Điện trở **~4.7 kΩ** (thường 3 con) | Pull-up **SDA, SCL, INT** |
-| (Một số bản) **LDO 3.3 V** | Khi VIN = 5 V, tạo 3.3 V cho LED hoặc cho pull-up |
+| (Một số bản) **LDO 3.3 V** | Khi VIN = 5 V, tạo 3.3 V cho LED hoặc cho pull-up. **Lưu ý [ĐÃ KIỂM CHỨNG]:** board có LDO 3.3 V có thể cần VIN **cao hơn 3.3 V** (do dropout) mới ra đủ 3.3 V; với loại này cấp đúng 3.3 V có thể làm rail nội thấp hơn dự kiến — hãy đo |
 | (Một số bản) **pad 3 điểm** `1.8V – NC – 3.3V` | Chọn điện áp kéo I2C/INT |
 | Header 2.54 mm 7 chân | Ra ngoài MCU |
 
@@ -111,7 +114,7 @@ Trên một breakout 7 chân “đủ dùng”, ngoài chip còn:
 
 ## 5. Sơ đồ khối nguồn và tín hiệu
 
-Kiến trúc **điển hình** board xanh 7 chân (một LDO):
+Kiến trúc **minh họa / giả định** (một LDO) — **[SUY LUẬN]**, không phải sơ đồ mạch thật của board trong ảnh:
 
 ```text
                     ┌─────────────────────────────────────────┐
@@ -172,7 +175,8 @@ Thứ tự **theo silkscreen ảnh dự án** (nhìn chữ, chân từ trái san
 ### 6.4. INT
 
 - Ngắt **mức thấp**. IDLE = HIGH nhờ pull-up; sự kiện → kéo LOW đến khi firmware đọc/xóa status.
-- Open-drain, abs max tới ~5 V về GND (chip), nhưng **mức HIGH thực tế = điện áp pull-up trên board**.
+- Open-drain; abs max của chân INT là **6 V** về GND **[DS]** (5 V chỉ là mức pull-up khuyến nghị tối đa), nhưng **mức HIGH thực tế = điện áp pull-up trên board**.
+- **Cẩn thận lúc cấp nguồn:** bit `PWR_RDY` kéo INT xuống **LOW** từ khi power-up cho đến khi đọc thanh ghi status `0x00` **[DS]**. Đừng nối INT vào chân strapping (xem mục 10).
 - Dùng GPIO ESP32 cấu hình input, **falling edge**, pull-up nội **tắt** nếu đã có 4.7 kΩ ngoài (tránh song song quá thấp).
 
 ### 6.5. IRD
@@ -186,7 +190,7 @@ Thứ tự **theo silkscreen ảnh dự án** (nhìn chữ, chân từ trái san
 - `R_DRV`: tương tự cho LED đỏ; thanh ghi `LED1_PA` (0x0C).
 - Để **NC**.
 
-> Một số tài liệu shop ghi “IRD/RD = cathode LED, nối GND”. **Sai với cách dùng breakout.** Nối GND hai chân này có thể làm LED không điều khiển đúng / hỏng driver.
+> Một số tài liệu shop ghi “IRD/RD = cathode LED, nối GND”. Mạch ứng dụng trong datasheet ghi `R_DRV` / `IR_DRV` là **"NO CONNECT"** **[DS]** → để **hở** là cách dùng đúng. Việc nối GND "làm hỏng driver" là **[SUY LUẬN]** (rủi ro hợp lý, không có nguồn xác nhận), nhưng không có lý do gì để nối.
 
 ### 6.7. GND
 
@@ -247,7 +251,7 @@ Nhiều board (RCWL-0531 và clone) có **3 pad hàn** chọn điện áp kéo S
 | Về **3.3 V** (mặc định bản tốt) | ~3.3 V | **ESP32, Arduino 3.3 V** |
 | Về VIN khi VIN = 5 V | 5 V | Arduino Uno; **cấm ESP32** |
 
-Datasheet chip: VIH = 0.7×VDD với VDD = 2 V → ngưỡng **phía MAX30102** thấp (~1.4 V). Chip **đọc** được 3.3 V trên SDA/SCL (abs max chân I/O tới 6 V). Vấn đề là **chiều ngược**: MCU 3.3 V **đọc** SDA khi slave kéo lên chỉ 1.8 V.
+Datasheet chip: VIH min = 0.7×VDD **[DS]**; abs max chân I/O (SDA, SCL, INT) tới 6 V **[DS]**. Từ đó **[SUY LUẬN]** chip đọc được 3.3 V trên SDA/SCL — đây là suy ra từ giới hạn tuyệt đối và ngưỡng VIH, **không phải** điều kiện hoạt động được datasheet đảm bảo. Vấn đề thực tế nằm ở **chiều ngược**: ESP32 cần VIH ≈ 0.75×VDD ≈ 2.5 V, nên khi pull-up chỉ 1.8 V thì ESP32 có thể không đọc được mức HIGH.
 
 **Việc phải làm khi nhận board:**
 
@@ -291,7 +295,7 @@ ESP32 SCL  →  SCL     (DevKit mặc định GPIO22)
 ### 9.3. Pull-up — board đã có thì không thêm mặc định
 
 - Board tốt: 3 × 4.7 kΩ trên SDA, SCL, INT.
-- Bus Fast-mode 400 kHz: datasheet thư viện thường yêu cầu **≤ 4.7 kΩ**.
+- Bus Fast-mode 400 kHz: thời gian tăng SDA/SCL tối đa 300 ns theo chuẩn I2C; với tải bus Cb ~50–100 pF thì pull-up cỡ **2.2–4.7 kΩ** là hợp lý (tính theo RC, không phải con số riêng của datasheet MAX30102).
 - Nhiều thiết bị I2C **cùng** có pull-up → R song song quá nhỏ, dòng sink lớn. Nếu bus đã có 4.7 kΩ trên MAX30102, **đừng** hàn thêm 4.7 kΩ ngoài trừ khi đo SDA không lên HIGH.
 - ESP32 `Wire` có pull-up nội yếu (~45 kΩ): thường **không thay** 4.7 kΩ ngoài; để nguyên.
 
@@ -316,7 +320,12 @@ MAX30102 cố định `0x57`. Có thể chung SDA/SCL với OLED SSD1306, EEPROM
 
 **Có thể không nối INT:** firmware poll FIFO pointer — đơn giản, tốn CPU, dễ trễ.
 
-**Nên nối INT cho đồ án:** GPIO bất kỳ có EXTI (ví dụ GPIO4, GPIO5, GPIO15 — tránh strapping nếu không hiểu: GPIO0/2/12/15 lúc boot).
+**Nên nối INT cho đồ án:** chọn GPIO **không phải chân strapping**.
+
+- **Tránh** GPIO **0, 2, 5, 12, 15** (strapping ESP32 **[ĐÃ KIỂM CHỨNG]**, tài liệu esptool/ESP-IDF): GPIO0/2 quyết định chế độ boot, GPIO12 chọn điện áp flash (kéo HIGH lúc boot có thể làm boot lỗi), GPIO15 điều khiển log boot, GPIO5/15 ảnh hưởng timing SDIO.
+- **Vì sao nguy hiểm:** INT bị kéo LOW ngay khi chip power-up (`PWR_RDY`, xem mục 6.4). Nếu INT đang nối vào GPIO0/2/12/15 khi ESP32 reset/boot, cấu hình boot có thể bị sai hoặc không nạp được firmware.
+- **Nên dùng:** GPIO **4, 13, 14, 16, 17, 18, 19, 23, 25, 26, 27, 32, 33** (tránh GPIO21/22 đã dùng cho I2C; GPIO34–39 chỉ input và không có pull-up nội — dùng được nhưng phải có pull-up ngoài, board đã có).
+- Mức HIGH của INT = điện áp pull-up trên board; INT thường **không** được dịch mức — nếu pull-up INT đang 1.8 V thì ESP32 có thể không thấy HIGH (kiểm tra bằng đồng hồ).
 
 Cấu hình: `INPUT`, ngắt **FALLING**, không pull-up nội nếu đã có ngoài.
 
@@ -326,8 +335,12 @@ Cấu hình: `INPUT`, ngắt **FALLING**, không pull-up nội nếu đã có ng
 
 Trong package MAX30102, LED đỏ/IR **đã nối** tới driver nội. Breakout đưa `IR_DRV`/`R_DRV` ra header chủ yếu vì:
 
+**[SUY LUẬN]** (không có nguồn chính thức giải thích lý do), các khả năng hợp lý:
+
 1. Layout cũ MAX30100 cũng 7 chân, shop giữ nguyên.
 2. Debug / đo dạng xung LED (oscilloscope) — không cần cho đồ án.
+
+Điều **đã có căn cứ [DS]**: mạch ứng dụng datasheet ghi hai chân này "NO CONNECT".
 
 **Đồ án: không hàn dây IRD, RD.**
 
@@ -456,7 +469,20 @@ SDA/SCL “mềm”, không ACK. Hàn 4.7 kΩ SDA–3V3 và SCL–3V3, INT–3V3
 | FIFO / ADC | 16-bit, khác register | 18-bit, map `MAX30102-BaoCao.md` |
 | Kính phủ | Không / khác | Có cover glass trong package |
 
-Firmware SparkFun MAX3010x (`MAX30105.h`) thường detect MAX30102. Thư viện MAX30100 **không** thay thế được.
+**[ĐÃ KIỂM CHỨNG]** (datasheet MAX30100/30102 và thảo luận Arduino forum):
+
+| | MAX30100 | MAX30102 |
+| --- | --- | --- |
+| Part ID (`0xFF`) | **0x11** | **0x15** |
+| FIFO | 16 mẫu | 32 mẫu |
+| ADC | 14-bit (SpO2 16-bit hiệu dụng) | 18-bit |
+| Địa chỉ I2C | 0x57 | 0x57 |
+
+Cả hai cùng địa chỉ 0x57 nên I2C scan **không phân biệt** được — phải đọc Part ID.
+
+Thư viện SparkFun MAX3010x (`MAX30105.h`) kiểm tra Part ID **0x15** (giá trị này dùng chung với MAX30105). Thư viện MAX30100 **không** thay thế được cho MAX30102 và ngược lại.
+
+Lưu ý thư viện SparkFun: `check()`/`available()` coi `write == read` là "FIFO trống"; nếu FIFO đầy 32 mẫu mà con trỏ trùng nhau, có thể hiểu nhầm — đọc FIFO đủ nhanh (hoặc dùng ngắt `A_FULL`) để tránh tràn.
 
 ---
 
@@ -551,6 +577,30 @@ Lập trình thanh ghi → file MAX30102-BaoCao.md
 - Báo cáo chip: `MAX30102-BaoCao.md`
 - Ảnh board: `images/breakout-module-MAX30102-7-pinout.png`
 - Kiến thức cộng đồng về clone: RCWL-0530/0531 (pull-up 1.8 V), GY-MAX30102, sửa LDO/jumper — **không** thay datasheet, chỉ giải thích hàng shop
+
+Nguồn công khai dùng khi rà soát (17/10/2026):
+
+- Arduino Forum — "MAX30100 / MAX30102 sensors" (pull-up 1.8 V, khác biệt hai chip)
+- Elektroda — thảo luận MH-ET LIVE MAX30102 (pad 1.8/3.3 V, 4.7 kΩ)
+- ShillehTek — Arduino MAX30102 vs MAX30100
+- Mbed — thư viện MAX30102
+- CircuitState — pinout DOIT ESP32 DevKit V1
+- Espressif/esptool — Boot Mode Selection (strapping pins)
+- SparkFun — MAX30105 Hookup Guide
+
+## Phụ lục C — Nhật ký kiểm chứng (17/10/2026)
+
+| Mục | Sửa gì | Lý do |
+| --- | --- | --- |
+| 10 | Bỏ gợi ý GPIO5/GPIO15 cho INT; liệt kê chân nên/không nên; thêm cảnh báo `PWR_RDY` kéo INT thấp lúc power-up | GPIO0/2/5/12/15 là strapping; mâu thuẫn nội bộ cũ |
+| 6.4 | Abs max chân INT = 6 V (không phải 5 V) | Datasheet |
+| 2, 3 | Mô tả ảnh: hai tụ vàng cùng một phía; có thể có 2 IC SOT-23 → sơ đồ một-LDO chưa chắc đúng; bỏ khẳng định "khớp đúng"/RCWL-0531 | Ảnh + không có nguồn xác nhận |
+| 3, 4 | Thêm MH-ET LIVE (pad 1.8/3.3 V, 4.7 kΩ, INT không dịch mức) và lưu ý LDO 3.3 V cần VIN > 3.3 V | Nguồn công khai |
+| 5, 6.6, 8, 11 | Gắn nhãn [SUY LUẬN]; ghi nhận R_DRV/IR_DRV "NO CONNECT" là căn cứ datasheet | Phân biệt sự thật và suy diễn |
+| 9.3 | Sửa câu "datasheet thư viện" thành lập luận rise-time/Cb | Câu cũ không có nguồn |
+| 15 | Thêm so sánh MAX30100 (0x11, FIFO 16, 14-bit) vs MAX30102 (0x15, FIFO 32, 18-bit) và lưu ý thư viện SparkFun | Kiểm chứng |
+
+Lỗi trong báo cáo **chip** đã sửa song song (xem Phụ lục C của `MAX30102-BaoCao.md`): thứ tự kênh FIFO phải là **RED → IR**; SpO2 không có 3200 sps. Khi viết driver, dùng **RED trước, IR sau**.
 
 ---
 

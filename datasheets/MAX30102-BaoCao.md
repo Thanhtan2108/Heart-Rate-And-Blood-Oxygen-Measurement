@@ -94,7 +94,7 @@ Có thể **tắt phần mềm (shutdown)** với dòng chờ rất nhỏ (~0.7 
   - Sample rate và dòng LED lập trình được để tiết kiệm năng lượng
   - Heart-rate monitor < **1 mW**
   - Dòng shutdown điển hình **0.7 µA** (max 10 µA @ 25 °C)
-- Xuất dữ liệu nhanh, sample rate cao (tới 3200 sps, phụ thuộc độ rộng xung)
+- Xuất dữ liệu nhanh, sample rate cao (tới 3200 sps — chỉ ở HR mode với PW 69 µs; SpO2 tối đa 1600 sps, xem mục 23)
 - Chống artifact chuyển động tốt nhờ SNR cao
 - Nhiệt độ hoạt động **-40 °C đến +85 °C**
 
@@ -439,7 +439,7 @@ Bit không dùng: giữ **0**.
 ### 12.2. FIFO
 
 | Addr | Tên | Bits | POR | R/W |
-| --- | --- | --- | --- |
+| --- | --- | --- | --- | --- |
 | 0x04 | FIFO Write Pointer | FIFO_WR_PTR[4:0] | 0x00 | R/W |
 | 0x05 | Overflow Counter | OVF_COUNTER[4:0] | 0x00 | R/W |
 | 0x06 | FIFO Read Pointer | FIFO_RD_PTR[4:0] | 0x00 | R/W |
@@ -582,14 +582,23 @@ value_18bit = ((b1 & 0x03) << 16) | (b2 << 8) | b3
 
 ### 14.4. Thứ tự kênh (SpO2)
 
-Theo Figure 2, mỗi sample:
+Trong mỗi sample SpO2 (MODE = `011`), thứ tự trong FIFO là:
 
-1. **IR** (3 byte)
-2. **RED** (3 byte)
+1. **RED** = LED1 (3 byte đầu)
+2. **IR** = LED2 (3 byte sau)
 
-Pseudo-code datasheet (trang 16) lại gán LED1 rồi LED2. LED1 = Red, LED2 = IR theo bảng Multi-LED. **Thứ tự FIFO vs tên LED1/LED2 dễ nhầm.**
+Căn cứ (đều khớp nhau):
 
-Thực hành: in cả hai kênh, đối chiếu — kênh IR thường DC cao hơn trên da; hoặc tắt lần lượt LED_PA. Nhiều thư viện SparkFun/Maxim đọc **Red rồi IR**. Khi port driver, **verify bằng thực nghiệm** (tắt LED1_PA hoặc LED2_PA).
+- **Figure 2** (trang 15) xếp mẫu cũ ở dưới, mẫu mới ở trên: *Sample 1 RED → Sample 1 IR → Sample 2 RED → Sample 2 IR*.
+- **Pseudo-code trang 16** đọc `LED1` (3 byte) rồi `LED2` (3 byte); theo Table 9, LED1 = Red, LED2 = IR.
+- **Figure 3 / Figure 4**: xung Red phát trước, xung IR phát sau trong mỗi sample.
+- Thư viện SparkFun MAX3010x dùng `ledMode = 2` nghĩa là "Red + IR" và đọc Red trước, IR sau.
+
+> **Đính chính so với bản trước:** bản cũ của tài liệu này ghi "IR rồi RED" và cho rằng Figure 2 mâu thuẫn với pseudo-code. Đó là hiểu nhầm hình — không có mâu thuẫn. Chỉ riêng câu chữ ở trang 19 ("one IR pulse/conversion and one Red pulse") nêu IR trước, nhưng đó không phải thứ tự byte trong FIFO.
+
+Với Multi-LED (MODE = `111`), thứ tự byte theo **SLOT1 → SLOT4** (mỗi slot active = 3 byte).
+
+Thực hành: dù đã có căn cứ trên, vẫn nên kiểm tra thực nghiệm một lần trên board thật — đặt `LED1_PA = 0` (Red tắt) hoặc `LED2_PA = 0` (IR tắt) rồi xem kênh nào về ~0.
 
 ### 14.5. Burst đọc — ngoại lệ địa chỉ 0x07
 
@@ -619,10 +628,10 @@ NUM_TO_READ <= NUM_AVAILABLE
 // 2) Burst FIFO_DATA
 START; ADDR_W; 0x07; RESTART; ADDR_R
 for i in 0 .. NUM_TO_READ-1:
-    LED1_b2 = read()   // [23:16]
+    LED1_b2 = read()   // [23:16]  LED1 = RED
     LED1_b1 = read()
     LED1_b0 = read()
-    LED2_b2 = read()
+    LED2_b2 = read()   //          LED2 = IR
     LED2_b1 = read()
     LED2_b0 = read()
 STOP
@@ -744,7 +753,7 @@ Một sample SpO2 = **1 xung/conversion IR + 1 Red**.
 
 Nếu SR quá cao so với LED_PW, IC **tự kẹp** xuống SR cao nhất còn hợp lệ.
 
-Đồ án nhịp tim/SpO2 ngón tay: thường **100 sps**, PW **411 µs** (18-bit) nếu timing cho phép.
+Đồ án nhịp tim/SpO2 ngón tay: cấu hình hay dùng là PW **411 µs** (18-bit) với SR 100–400 sps (SpO2 18-bit tối đa 400 sps). Lưu ý nếu dùng thêm SMP_AVE thì tốc độ mẫu ra FIFO = SR / N_avg (xem mục 15.1).
 
 ### 17.3. LED_PW và độ phân giải ADC
 
@@ -872,7 +881,9 @@ PW quyết định SR tối đa.
 | 800 | ✓ | ✓ | ✓ | |
 | 1000 | ✓ | ✓ | | |
 | 1600 | ✓ | | | |
-| 3200 | ✓ | | | |
+| 3200 | | | | |
+
+SpO2 (hai LED/sample) **không** chạy được 3200 sps ở bất kỳ PW nào; tối đa 1600 sps và chỉ với PW 69 µs.
 
 ### Bảng 12 — HR (một LED/sample → timing thoáng hơn)
 
@@ -882,7 +893,9 @@ PW quyết định SR tối đa.
 | 800 | ✓ | ✓ | ✓ | ✓ |
 | 1000 | ✓ | ✓ | ✓ | ✓ |
 | 1600 | ✓ | ✓ | ✓ | |
-| 3200 | ✓ | ✓ | | |
+| 3200 | ✓ | | | |
+
+Chỉ HR mode + PW 69 µs (15-bit) mới đạt **3200 sps**.
 
 SpO2 **18-bit (411 µs)** chỉ tới **400 sps**.  
 HR 18-bit tới **1000 sps**.
@@ -942,7 +955,7 @@ Cột duty 8/16/32% tương ứng PW so với chu kỳ sample (ví dụ 411 µs 
 | 5 | Đọc FIFO, xóa ngắt | Cửa sổ datasheet ~15–300 ms tùy SR và ngưỡng |
 | 6 | Sample mới ghi vào vị trí RD mới | |
 
-LED luân phiên IR–RED theo từng sample.
+LED luân phiên **RED → IR** theo từng sample (Figure 4 và Figure 3).
 
 ### 25.3. Chuỗi HR (Figure 5 / Table 16)
 
@@ -1087,13 +1100,14 @@ I2C begin
 1. Ghi RESET (0x09 bit6 = 1), poll đến khi bit = 0
 2. Xóa FIFO: 0x04, 0x05, 0x06 = 0
 3. FIFO config 0x08:
-   - SMP_AVE = 4 (010)  // tùy
+   - SMP_AVE = 4 (010)  // tùy; tốc độ FIFO hiệu dụng = SR / 4
    - ROLLOVER_EN = 1
-   - FIFO_A_FULL = 0xF  // ngắt khi còn 17 mẫu
+   - FIFO_A_FULL = 0xF  // ngắt khi còn 17 mẫu chưa đọc
 4. SpO2 config 0x0A:
    - ADC_RGE = 00 hoặc 01 (2048–4096 nA) lúc bắt đầu
-   - SR = 100 sps (001)
-   - PW = 411 µs / 18-bit (11)  // hợp lệ với 100 sps SpO2
+   - SR = 400 sps (011), PW = 411 µs / 18-bit (11)  // hợp lệ theo Bảng 11 (SpO2 18-bit tối đa 400 sps)
+     // với SMP_AVE = 4 → ~100 mẫu/s ra FIFO. Nếu chọn SR = 100 + SMP_AVE = 4 thì chỉ còn ~25 mẫu/s,
+     // khá thấp để dò đỉnh PPG và tính tỷ số SpO2 (đây là gợi ý thiết kế, không phải quy định datasheet)
 5. LED1_PA, LED2_PA: bắt đầu ~0x1F–0x3F, chỉnh theo count
 6. Enable: A_FULL_EN (+ ALC_OVF, TEMP nếu cần); mask PPG_RDY
 7. MODE = 011 (SpO2)
@@ -1106,7 +1120,7 @@ HR only: MODE = `010`, chỉ LED1_PA.
 
 - ISR INT (falling) → cờ software  
 - Loop: đọc WR_PTR, tính số mẫu, burst 0x07  
-- Ghép 18-bit, tách 2 kênh  
+- Ghép 18-bit, tách 2 kênh (**Red trước, IR sau** — xem mục 14.4)  
 - ALC_OVF → đánh dấu sample không tin cậy  
 - Lọc DC (moving average / DC tracker) → AC PPG  
 - BPM: peak/zero-crossing hoặc FFT trên AC  
@@ -1127,7 +1141,7 @@ HR only: MODE = `010`, chỉ LED1_PA.
 
 - Shutdown SHDN khi không đo  
 - Proximity + PILOT_PA nhỏ khi chờ ngón tay  
-- SR 50–100 sps + averaging cho pin  
+- SR thấp (50–100 sps) + averaging tiết kiệm pin, nhưng nhớ tốc độ mẫu hiệu dụng = SR / N_avg (có thể quá thấp cho PPG)  
 - LED chiếm phần lớn năng lượng VLED+, không phải IDD 600 µA  
 
 ---
@@ -1218,6 +1232,31 @@ T                 = (int8_t)TINT + (TFRAC & 0x0F) * 0.0625
 
 I_led_mA_approx   = reg_PA * 0.2        // typical, không phải spec chặt
 ```
+
+---
+
+## Phụ lục C — Nhật ký kiểm chứng (17/10/2026)
+
+Đã đối chiếu từng mục với `MAX30102.PDF` (Rev 0, 9/2015). Các chỗ đã sửa so với bản đầu:
+
+| Mục | Sửa gì | Căn cứ |
+| --- | --- | --- |
+| 14.4, 14.7, 25.2, 30.3 | Thứ tự kênh trong FIFO là **RED → IR** (bản đầu ghi ngược) | Figure 2, 3, 4; pseudo-code tr.16; Table 9 |
+| 23 (Bảng 11) | SpO2 **không** có 3200 sps | Table 11 tr.23 |
+| 23 (Bảng 12) | HR 3200 sps chỉ với PW 69 µs (bản đầu ghi thêm 118 µs) | Table 12 tr.23 |
+| 2 | Làm rõ "tới 3200 sps" chỉ áp dụng HR + 69 µs | Table 11/12 |
+| 12.2 | Sửa lỗi cú pháp bảng Markdown | — |
+| 17.2, 30.2, 30.5 | Thêm lưu ý tốc độ mẫu hiệu dụng = SR / N_avg; ví dụ init dùng 400 sps | Table 3, 6, 11 |
+
+Các nội dung còn lại (thông số điện/quang, thanh ghi, ngắt, FIFO, LED current, nhiệt độ, proximity, I2C, Part ID, package) đã khớp datasheet.
+
+Điểm datasheet tự chưa nhất quán (nên biết):
+
+- Bảng MODE ghi HR (`010`) chỉ dùng LED đỏ, nhưng phần mô tả timing HR nói người dùng chọn được Red hoặc IR, và Figure 5 vẽ xung IR.
+- Phần chữ ghi INT pull-up ví dụ **4.7 kΩ**, còn mạch ứng dụng (trang 31) vẽ **1 kΩ**.
+- Bảng đặc tính ghi ADC clock 10.48 MHz typ, phần mô tả ghi 10.24 MHz.
+- Thanh ghi `0x21` (TEMP_EN) ghi "R" trong bảng nhưng phần mô tả là bit ghi 1 để kích đo.
+- Phần chữ trang 19 nêu "IR pulse và Red pulse" (IR trước) trong khi Figure 2/3/4 và pseudo-code là Red trước.
 
 ---
 
