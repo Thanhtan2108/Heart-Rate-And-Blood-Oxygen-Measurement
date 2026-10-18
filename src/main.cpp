@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <scanI2C.h>
+#include <U8g2lib.h>
+#include <displayU8g2.h>
 
 // Cấu hình bus I2C (theo sơ đồ đấu dây Bước 2)
 constexpr uint8_t  kPinSda     = 21;
@@ -14,11 +16,26 @@ constexpr uint8_t kMax30102ExpectedPartId = 0x15;
 constexpr uint8_t kOledAddressPrimary     = 0x3C;
 constexpr uint8_t kOledAddressSecondary   = 0x3D;
 
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C oled(U8G2_R0, U8X8_PIN_NONE);
+DisplayU8g2 display(oled);
+
+void drawOledSelfTest() {
+  display.clearBuffer();
+  display.setFont(u8g2_font_6x10_tf);
+  display.drawTextAligned("OLED SSD1306", 11, DisplayTextAlign::kCenter);
+
+  display.useVietnameseFont();
+  display.drawTextAligned("Tiếng Việt", 29, DisplayTextAlign::kCenter);
+  display.drawTextAligned("ă â ê ô ơ ư", 48, DisplayTextAlign::kCenter);
+  display.drawIcon(DisplayIcon::kCheck, 108, 49, 14);
+  display.sendBuffer();
+}
+
 void setup() {
   Serial.begin(115200);
   delay(500);
   Serial.println();
-  Serial.println("=== CP1: scan I2C + Part ID ===");
+  Serial.println("=== CP1: scan I2C + Part ID + OLED U8g2 self-test ===");
 
   Wire.begin(kPinSda, kPinScl);
   Wire.setClock(kI2cClockHz);
@@ -55,6 +72,12 @@ void setup() {
     Serial.println("OLED: NOT FOUND at 0x3C or 0x3D");
   } else {
     Serial.printf("OLED: found at 0x%02X\n", (unsigned)oledAddress);
+    if (!display.begin(oledAddress)) {
+      Serial.println("OLED: U8g2 initialization FAILED");
+    } else {
+      drawOledSelfTest();
+      Serial.println("OLED: U8g2 self-test pattern sent");
+    }
   }
 }
 
