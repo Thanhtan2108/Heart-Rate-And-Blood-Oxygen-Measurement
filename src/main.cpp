@@ -2,19 +2,8 @@
 #include <Wire.h>
 
 #include "displayU8g2.h"
+#include "config.h"
 #include "scanI2C.h"
-
-// Cấu hình bus I2C (theo sơ đồ đấu dây Bước 2)
-constexpr uint8_t  kPinSda     = 21;
-constexpr uint8_t  kPinScl     = 22;
-constexpr uint32_t kI2cClockHz = 400000;
-
-// Thiết bị kỳ vọng trên bus
-constexpr uint8_t kMax30102Address        = 0x57;
-constexpr uint8_t kMax30102PartIdRegister = 0xFF;
-constexpr uint8_t kMax30102ExpectedPartId = 0x15;
-constexpr uint8_t kOledAddressPrimary     = 0x3C;
-constexpr uint8_t kOledAddressSecondary   = 0x3D;
 
 // Bước 3: quét và in các địa chỉ có trên bus
 static void printI2CScan() {
