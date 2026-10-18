@@ -7,7 +7,7 @@
 // Cấu hình bus I2C (theo sơ đồ đấu dây Bước 2)
 constexpr uint8_t  kPinSda     = 21;
 constexpr uint8_t  kPinScl     = 22;
-constexpr uint32_t kI2cClockHz = 100000;
+constexpr uint32_t kI2cClockHz = 400000;
 
 // Thiết bị kỳ vọng trên bus
 constexpr uint8_t kMax30102Address        = 0x57;
